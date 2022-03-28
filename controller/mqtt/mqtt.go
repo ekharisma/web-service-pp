@@ -6,6 +6,7 @@ import (
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/ekharisma/web-service-pp/controller/db"
 	"github.com/ekharisma/web-service-pp/model"
 )
 
@@ -16,8 +17,6 @@ var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
 var connectionLostHandler mqtt.ConnectionLostHandler = func(c mqtt.Client, err error) {
 	fmt.Println("Connection Lost due to", err.Error())
 }
-
-var Data []float32
 
 func MqttInit(broker string, port int) mqtt.Client {
 	opts := mqtt.NewClientOptions()
@@ -32,6 +31,16 @@ func MqttInit(broker string, port int) mqtt.Client {
 	return client
 }
 
+func ConsumeMqtt(client mqtt.Client, message mqtt.Message) {
+	// storeto database
+	payload := message.Payload()
+	timestamp, temperature := parseMessage(payload)
+	db.StoreTemperature(model.Temperature{
+		timestamp,
+		temperature,
+	})
+}
+
 func parseMessage(message []byte) (time.Time, [2]float32) {
 	fmt.Println("Message Received")
 	var payload model.Payload
@@ -40,14 +49,4 @@ func parseMessage(message []byte) (time.Time, [2]float32) {
 		panic(err.Error())
 	}
 	return payload.Timestamp, payload.Temperature
-}
-
-func ConsumeMqtt(client mqtt.Client, message mqtt.Message) {
-	payload := message.Payload()
-	_, temperature := parseMessage(payload)
-	Data = append(Data, temperature[0], temperature[1])
-}
-
-func GetLastTemperatures() []float32 {
-	return Data[len(Data)-2:]
 }

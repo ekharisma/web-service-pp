@@ -1,25 +1,33 @@
-package controller
+package api
 
 import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
-	"github.com/ekharisma/web-service-pp/model"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/ekharisma/web-service-pp/controller/db"
 )
 
-func Hello(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello")
+type APIController struct {
+	client mqtt.Client
+	db     db.Database
 }
 
-func Temperature(w http.ResponseWriter, r *http.Request) {
-	temperature := GetLastTemperatures()
-	payload := model.Payload{
-		Timestamp:   time.Now(),
-		Temperature: [2]float32{temperature[0], temperature[1]},
+type Controller interface {
+	GetTemperature(w http.ResponseWriter, r *http.Request)
+}
+
+func NewController(client mqtt.Client, db db.Database) Controller {
+	return &APIController{
+		client: client,
+		db:     db,
 	}
-	message, err := json.Marshal(payload)
+}
+
+func (c *APIController) GetTemperature(w http.ResponseWriter, r *http.Request) {
+	temperature, err := c.db.GetLastTemperatures()
+	message, err := json.Marshal(temperature)
 	if err != nil {
 		fmt.Fprint(w, "Error", err.Error())
 	}

@@ -4,20 +4,25 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/ekharisma/web-service-pp/controller"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
+
+	"github.com/ekharisma/web-service-pp/constant"
+	"github.com/ekharisma/web-service-pp/controller/api"
+	"github.com/ekharisma/web-service-pp/controller/db"
+	mqttPkg "github.com/ekharisma/web-service-pp/controller/mqtt"
 )
 
-const broker = "broker.emqx.io"
-const port = 1883
-const topic = "/demo/pp/3"
-const defaultQOS = 2
-
 func main() {
-	http.HandleFunc("/", controller.Hello)
-	http.HandleFunc("/thermometer", controller.Temperature)
-	client := controller.MqttInit(broker, port)
-	if token := client.Subscribe(topic, defaultQOS, controller.ConsumeMqtt); token.Wait() && token.Error() != nil {
-		panic(token.Error().Error())
+	mqttPkg.CreateMqttClient(constant.Broker, constant.Port)
+	var (
+		mqttClient     mqtt.Client        = mqttPkg.GetMqttClient()
+		database       db.Database        = db.NewInMemoryDatabase()
+		controller     api.Controller     = api.NewController(mqttClient, database)
+		mqttController api.MqttController = api.CreateNewMqttController(mqttClient, database)
+	)
+	if mqttController.StartSubscribe() {
+		log.Panic("Can't connect")
 	}
+	http.HandleFunc("/thermometer", controller.GetTemperature)
 	log.Fatal(http.ListenAndServe(":8000", nil))
 }

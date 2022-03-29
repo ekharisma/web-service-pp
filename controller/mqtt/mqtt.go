@@ -1,13 +1,10 @@
-package controller
+package mqtt
 
 import (
-	"encoding/json"
 	"fmt"
-	"time"
+	"sync"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/ekharisma/web-service-pp/controller/db"
-	"github.com/ekharisma/web-service-pp/model"
 )
 
 var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
@@ -18,35 +15,23 @@ var connectionLostHandler mqtt.ConnectionLostHandler = func(c mqtt.Client, err e
 	fmt.Println("Connection Lost due to", err.Error())
 }
 
-func MqttInit(broker string, port int) mqtt.Client {
-	opts := mqtt.NewClientOptions()
-	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", broker, port))
-	opts.ClientID = "pp-2-web-service"
-	opts.OnConnect = connectHandler
-	opts.OnConnectionLost = connectionLostHandler
-	client := mqtt.NewClient(opts)
-	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		panic(token.Error())
-	}
-	return client
-}
+var mqttClient mqtt.Client = nil
+var mqttSingleton sync.Once
 
-func ConsumeMqtt(client mqtt.Client, message mqtt.Message) {
-	// storeto database
-	payload := message.Payload()
-	timestamp, temperature := parseMessage(payload)
-	db.StoreTemperature(model.Temperature{
-		timestamp,
-		temperature,
+func CreateMqttClient(broker string, port int) {
+	mqttSingleton.Do(func() {
+		opts := mqtt.NewClientOptions()
+		opts.AddBroker(fmt.Sprintf("tcp://%s:%d", broker, port))
+		opts.OnConnect = connectHandler
+		opts.ClientID = "pp-2-web-service"
+		opts.OnConnectionLost = connectionLostHandler
+		mqttClient = mqtt.NewClient(opts)
+		if token := mqttClient.Connect(); token.Wait() && token.Error() != nil {
+			panic(token.Error())
+		}
 	})
 }
 
-func parseMessage(message []byte) (time.Time, [2]float32) {
-	fmt.Println("Message Received")
-	var payload model.Payload
-	err := json.Unmarshal(message, &payload)
-	if err != nil {
-		panic(err.Error())
-	}
-	return payload.Timestamp, payload.Temperature
+func GetMqttClient() mqtt.Client {
+	return mqttClient
 }

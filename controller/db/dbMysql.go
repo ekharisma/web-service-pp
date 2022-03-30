@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"strings"
-	"time"
 
 	"github.com/ekharisma/web-service-pp/constant"
 	"github.com/ekharisma/web-service-pp/model"
@@ -18,7 +16,7 @@ type MySQL struct {
 }
 
 func NewMySQLDatabase(username, password, host, dbName string, port uint) Database {
-	dsn := fmt.Sprintf("%v:%v@tcp(%v:%d)/%v", username, password, host, port, dbName)
+	dsn := fmt.Sprintf("%v:%v@tcp(%v:%d)/%v?parseTime=true", username, password, host, port, dbName)
 	fmt.Println("Try to connect with dsn : ", dsn)
 	db, err := sql.Open(constant.Driver, dsn)
 	if err != nil {
@@ -49,9 +47,13 @@ func NewMySQLDatabase(username, password, host, dbName string, port uint) Databa
 }
 
 func (db *MySQL) StoreTemperature(data model.Temperature) {
-	query := fmt.Sprintf("INSERT INTO temperature_table(timestamp, temperature1, temperature2) VALUES('%v', %v, %v)", dateParser(data.Timestamp), data.Temperature[0], data.Temperature[1])
+	var ctx context.Context
+	query := fmt.Sprintf(
+		"INSERT INTO temperature_table(timestamp, temperature1, temperature2) VALUES('%v', %v, %v)",
+		data.Timestamp.Format("2006-01-02 03:04:05"), data.Temperature[0], data.Temperature[1],
+	)
 	fmt.Println("Query :", query)
-	tx, txErr := db.db.BeginTx(context.Background(), &sql.TxOptions{})
+	tx, txErr := db.db.BeginTx(ctx, &sql.TxOptions{})
 	if txErr != nil {
 		log.Fatal("Begin Transaction Error", txErr.Error())
 	}
@@ -67,35 +69,20 @@ func (db *MySQL) StoreTemperature(data model.Temperature) {
 
 func (db *MySQL) GetLastTemperatures() (model.Temperature, error) {
 	query := "SELECT timestamp, temperature1, temperature2 FROM temperature_table ORDER BY Id DESC LIMIT 1"
+	var temperature model.Temperature
 	tx, txErr := db.db.BeginTx(context.Background(), &sql.TxOptions{})
 	if txErr != nil {
 		log.Fatal("Begin Transaction Error", txErr.Error())
 		return model.Temperature{}, txErr
 	}
-	results, txErr := tx.Query(query)
-	if txErr != nil {
-		tx.Rollback()
-		log.Fatal("Transaction Error, Rolling Back. Reason : ", txErr.Error())
-		return model.Temperature{}, txErr
+	err := tx.QueryRow(query).Scan(&temperature.Timestamp, &temperature.Temperature[0], &temperature.Temperature[1])
+	if err != nil {
+		log.Fatal("Ca't Query DB. Reason : ", err.Error())
+		return model.Temperature{}, err
 	}
-	if txErr = tx.Commit(); txErr != nil {
-		log.Fatal("Commit Transaction Error. Reason : ", txErr.Error())
-		return model.Temperature{}, txErr
+	if err = tx.Commit(); err != nil {
+		log.Fatal("Cant Commit. Reason : ", err.Error())
+		return model.Temperature{}, err
 	}
-	var result = model.Temperature{}
-	for results.Next() {
-		var err = results.Scan(&result.Timestamp, &result.Temperature[0], &result.Temperature[1])
-		if err != nil {
-			log.Fatal(err.Error())
-			return model.Temperature{}, err
-		}
-	}
-	return result, nil
-}
-
-func dateParser(t time.Time) string {
-	split := strings.Split(t.String(), " ")
-	formatedStr := split[0] + " " + split[1]
-	split = strings.Split(formatedStr, ".")
-	return split[0]
+	return temperature, nil
 }

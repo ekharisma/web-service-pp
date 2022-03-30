@@ -12,7 +12,7 @@ import (
 
 type MqttController interface {
 	StartSubscribe() bool
-	ParseMessage(message []byte) model.Payload
+	ParseMessage(message []byte) model.Temperature
 }
 
 type MqttHandler struct {
@@ -32,7 +32,7 @@ func CreateNewMqttController(client mqtt.Client, database db.Database) MqttContr
 		case constant.Topic:
 			{
 				payload := obj.ParseMessage(m.Payload())
-				database.StoreTemperature(model.Temperature(payload))
+				database.StoreTemperature(payload)
 			}
 		}
 	}
@@ -50,9 +50,9 @@ func (mh *MqttHandler) StartSubscribe() bool {
 	return true
 }
 
-func (mh *MqttHandler) ParseMessage(message []byte) model.Payload {
+func (mh *MqttHandler) ParseMessage(message []byte) model.Temperature {
 	fmt.Println("Message Received")
-	var payload model.Payload
+	var payload model.Temperature
 	err := json.Unmarshal(message, &payload)
 	if err != nil {
 		panic(err.Error())

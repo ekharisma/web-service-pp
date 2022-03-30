@@ -16,7 +16,7 @@ func main() {
 	mqttPkg.CreateMqttClient(constant.Broker, constant.Port)
 	var (
 		mqttClient     mqtt.Client        = mqttPkg.GetMqttClient()
-		database       db.Database        = db.NewInMemoryDatabase()
+		database       db.Database        = db.NewMySQLDatabase(constant.UsernameDB, constant.PasswordDB, constant.HostDB, constant.NameDB, constant.PortDB)
 		controller     api.Controller     = api.NewController(mqttClient, database)
 		mqttController api.MqttController = api.CreateNewMqttController(mqttClient, database)
 	)

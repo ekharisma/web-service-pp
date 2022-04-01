@@ -46,25 +46,25 @@ func NewMySQLDatabase(username, password, host, dbName string, port uint) Databa
 	}
 }
 
-func (db *MySQL) StoreTemperature(data model.Temperature) {
-	var ctx context.Context
-	query := fmt.Sprintf(
-		"INSERT INTO temperature_table(timestamp, temperature1, temperature2) VALUES('%v', %v, %v)",
-		data.Timestamp.Format("2006-01-02 03:04:05"), data.Temperature[0], data.Temperature[1],
-	)
+func (db *MySQL) StoreTemperature(data model.Temperature) error {
+	query := "INSERT INTO temperature_table(timestamp, temperature1, temperature2) VALUES(?, ?, ?)"
 	fmt.Println("Query :", query)
-	tx, txErr := db.db.BeginTx(ctx, &sql.TxOptions{})
+	tx, txErr := db.db.BeginTx(context.Background(), &sql.TxOptions{})
 	if txErr != nil {
 		log.Fatal("Begin Transaction Error", txErr.Error())
+		return txErr
 	}
-	_, txErr = tx.Exec(query)
+	_, txErr = tx.Exec(query, data.Timestamp.Format("2006-01-02 03:04:05"), data.Temperature[0], data.Temperature[1])
 	if txErr != nil {
 		tx.Rollback()
 		log.Fatal("Transaction Error, Rolling Back. Reason : ", txErr.Error())
+		return txErr
 	}
 	if txErr = tx.Commit(); txErr != nil {
 		log.Fatal("Commit Transaction Error. Reason : ", txErr.Error())
+		return txErr
 	}
+	return nil
 }
 
 func (db *MySQL) GetLastTemperatures() (model.Temperature, error) {

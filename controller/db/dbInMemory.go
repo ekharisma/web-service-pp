@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/ekharisma/web-service-pp/model"
 )
@@ -25,6 +26,7 @@ func (db *InMemoryDatabase) StoreTemperature(data model.Temperature) error {
 }
 
 func (db *InMemoryDatabase) GetLastTemperatures() (model.Temperature, error) {
+	fmt.Println("Len : ", len(db.database))
 	if len(db.database) > 0 {
 		return db.database[len(db.database)-1], nil
 	}

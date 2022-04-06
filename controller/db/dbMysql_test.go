@@ -46,13 +46,14 @@ func TestGetDataShouldSuccessDB(t *testing.T) {
 		t.Error("Error. Reason : ", err.Error())
 	}
 }
-func TestGetDataShouldErrorDB(t *testing.T) {
-	db := NewMySQLDatabase(
-		constant.UsernameDB, constant.PasswordDB, constant.HostDB,
-		constant.NameDB, constant.PortDB,
-	)
-	_, err := db.GetLastTemperatures()
-	if err == nil {
-		t.Error("Should return nil")
-	}
-}
+
+// func TestGetDataShouldErrorDB(t *testing.T) {
+// 	db := NewMySQLDatabase(
+// 		constant.UsernameDB, constant.PasswordDB, constant.HostDB,
+// 		constant.NameDB, constant.PortDB,
+// 	)
+// 	_, err := db.GetLastTemperatures()
+// 	if err == nil {
+// 		t.Error("Should return nil")
+// 	}
+// }
